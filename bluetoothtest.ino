@@ -35,10 +35,10 @@ int BrakeLights = 9;
 int SensorLight = 10;
 
 // Declaring window wiper motor
-#define ENB_PIN   4 // ENA of DC motor driver module attach to pin5 of sunfounder uno board
-#define IN3 3 // left IN1 attach to pin8 
-#define IN4 2 // left IN2 attach to pin9
-
+#define ENB_PIN   4 // ENB of DC motor driver module attach to pin 4 of sunfounder uno board
+#define IN3 3 // left IN1 attach to pin 3 
+#define IN4 2 // left IN2 attach to pin 2
+#define ENA_PIN   33 //
 // Initializing Serial.available variable
   int incomingByte = 0;
 
@@ -111,25 +111,14 @@ void loop ()
   Serial.println(" ");
   delay(1500);              // Wait for a second
   */
-//  Set Ultrasonic senor on
-//  digitalWrite(trigPin, LOW); 
-//  delayMicroseconds(5); 
-//  digitalWrite(trigPin, HIGH);
-//  pinMode(echoPin, INPUT); 
-//  duration = pulseIn(echoPin, HIGH);
-// inches = (duration/2) / 74;
-
-     
-  /*Serial.print(inches); 
-  Serial.println("in ");*/
-// if(Serial1.available())
-//  {
-//  byte a=Serial1.read();
-//  Serial.write(a);
-//  } 
-  // Set certain LEDs on
-  digitalWrite(DayLights, HIGH);   // Turn the LED on (HIGH is the voltage level)
-  digitalWrite(SensorLight,HIGH);
+/*  Create a section of code for ignition
+    This will enble the buffer enable pin to 'start' the
+    car and turn on the day lights.
+    In addition a code created to turn off the enable is
+    also necessary to ensure that the lights are off
+    when the care is off.
+*/
+ 
 if(Serial1.available()>0) // Look for user data
   {
     incomingByte = Serial1.read();          // Store user data into variable
@@ -153,6 +142,7 @@ if(Serial1.available()>0) // Look for user data
       Serial1.println("Headlights are on");
       digitalWrite(BrakeLights,LOW);
       digitalWrite(SensorLight,HIGH);
+      digitalWrite(ReverseLights,LOW);
       esc.write(97);
     break;
 // Turns off the brake lights and sensor lights and starts the brushless motor backward
@@ -199,6 +189,7 @@ if(Serial1.available()>0) // Look for user data
       Serial1.println("Car is stopped");
       digitalWrite(SensorLight,LOW);
       digitalWrite(BrakeLights,HIGH);
+      digitalWrite(ReverseLights,LOW);
       servo.write(90);
       esc.write(90);
       delay(1000);
@@ -225,21 +216,21 @@ if(Serial1.available()>0) // Look for user data
       
     break;
     
-//    case 'B':
-//      Serial1.println("No precipitation");
-//      digitalWrite(ENA_PIN, LOW); 
-//      digitalWrite(IN1,LOW);
-//      digitalWrite(IN2,LOW);
-//      delay(500);
-//    break;
-//    
-//    case 'C':
-//      Serial1.println("No precipitation");
-//      digitalWrite(ENA_PIN, LOW); 
-//      digitalWrite(IN1,LOW);
-//      digitalWrite(IN2,LOW);
-//      delay(500);
-//    break;
+   case 'B':
+     Serial1.println("Car is off");
+     digitalWrite(ENA_PIN,HIGH);
+     // Set certain LEDs off
+     digitalWrite(DayLights, LOW);   // Turn the LED on (HIGH is the voltage level)
+     digitalWrite(SensorLight,LOW);
+   break;
+   
+   case 'C':
+     Serial1.println("Car is on");
+     digitalWrite(ENA_PIN,LOW);
+      // Set certain LEDs on
+     digitalWrite(DayLights, HIGH);   // Turn the LED on (HIGH is the voltage level)
+     digitalWrite(SensorLight,HIGH);
+   break;
   }
 //  if (inches <= 10)
 //  {
