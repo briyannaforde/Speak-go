@@ -24,21 +24,23 @@
   int inputValRR = 0;
   // long duration,cm, inches;
   int lightSense = A4;
-
+  int ENA_PIN    = 33; //EnA of Buffer IC chip
+  int Latch_Pin  = 32;
+  
 // Declaring the pins for the lights used
-int ReverseLights = 5;
-int DayLights = 6;
-int turnLeft = 7;
-int turnRight = 8;
-int HeadLights = 11;
-int BrakeLights = 9;
-int SensorLight = 10;
+  int ReverseLights = 5;
+  int DayLights = 6;
+  int turnLeft = 7;
+  int turnRight = 8;
+  int HeadLights = 11;
+  int BrakeLights = 9;
+  int SensorLight = 10;
 
 // Declaring window wiper motor
-#define ENB_PIN   4 // ENB of DC motor driver module attach to pin 4 of sunfounder uno board
-#define IN3 3 // left IN1 attach to pin 3 
-#define IN4 2 // left IN2 attach to pin 2
-#define ENA_PIN   33 //
+  #define ENB_PIN   4 // ENB of DC motor driver module attach to pin 4 of sunfounder uno board
+  #define IN3 3 // left IN1 attach to pin 3 
+  #define IN4 2 // left IN2 attach to pin 2
+  
 // Initializing Serial.available variable
   int incomingByte = 0;
 
@@ -63,7 +65,9 @@ void setup()
   pinMode(SensorLight, OUTPUT);
   pinMode(ENB_PIN, OUTPUT);
   pinMode(IN3, OUTPUT);
-  pinMode(IN4, OUTPUT); 
+  pinMode(IN4, OUTPUT);
+  pinMode(ENA_PIN, OUTPUT);
+  pinMode(Latch_Pin, OUTPUT); 
  
 // Flash certain LEDs on and off
   digitalWrite(DayLights, HIGH);   // Turn the LED on (HIGH is the voltage level)
@@ -119,7 +123,7 @@ void loop ()
     when the care is off.
 */
  
-if(Serial1.available()>0) // Look for user data
+if(Serial1.available()> 0) // Look for user data
   {
     incomingByte = Serial1.read();          // Store user data into variable
     Serial1.write(incomingByte);            // Display message to user
@@ -128,17 +132,17 @@ if(Serial1.available()>0) // Look for user data
     {
 
 // Turns on the head lights and state visability levels
-    case '1':
+    case 'a':
      Serial1.println("Low visablity");
      digitalWrite(HeadLights,HIGH);
     break;
 // Turns off the head lights and state visability levels
-    case '2':
+    case 'b':
      Serial1.println("High visablity");
      digitalWrite(HeadLights,LOW);
     break;
 // Turns off the brake lights, turns on the sensor light and starts the brushless motor forward
-    case '3':
+    case 'c':
       Serial1.println("Headlights are on");
       digitalWrite(BrakeLights,LOW);
       digitalWrite(SensorLight,HIGH);
@@ -146,7 +150,7 @@ if(Serial1.available()>0) // Look for user data
       esc.write(97);
     break;
 // Turns off the brake lights and sensor lights and starts the brushless motor backward
-    case '4':
+    case 'd':
       Serial1.println("Headlights are off");
       digitalWrite(SensorLight,LOW);
       digitalWrite(BrakeLights,LOW);
@@ -155,7 +159,7 @@ if(Serial1.available()>0) // Look for user data
       esc.write(88);
     break;
 // Turns on the left indicator lights, turns the front wheels to the left and states direction of movement
-    case '5':
+    case 'e':
       Serial1.println("Turning left");
       digitalWrite(turnLeft,HIGH);
       delay(500); // wait for a second
@@ -170,7 +174,7 @@ if(Serial1.available()>0) // Look for user data
       digitalWrite(turnLeft, LOW);      
     break;
 // Turns on the right indicator lights, turns the front wheels to the right and states direction of movement
-    case '6':     
+    case 'f':     
       Serial1.println("Turning right");
       digitalWrite(turnRight,HIGH);  
       delay(500);       // wait for a second
@@ -185,7 +189,7 @@ if(Serial1.available()>0) // Look for user data
       digitalWrite(turnRight, LOW);
     break;
 // Turns off the sensor lights, turns on the brake lights and stops the cars movement while straightening the wheels
-    case '7':
+    case 'g':
       Serial1.println("Car is stopped");
       digitalWrite(SensorLight,LOW);
       digitalWrite(BrakeLights,HIGH);
@@ -195,7 +199,7 @@ if(Serial1.available()>0) // Look for user data
       delay(1000);
     break;
 // Turns on windshield wipers and states the level of preciptation
-    case '8':
+    case 'h':
       Serial1.println("High precipitation");
       digitalWrite(ENB_PIN, HIGH); 
       digitalWrite(IN3,HIGH);
@@ -203,7 +207,7 @@ if(Serial1.available()>0) // Look for user data
       delay(500);
     break;
 // Turns off windshield wipers and states the level of preciptation
-    case '9':
+    case 'i':
       Serial1.println("No precipitation");
       digitalWrite(ENB_PIN, LOW); 
       digitalWrite(IN3,LOW);
@@ -211,25 +215,27 @@ if(Serial1.available()>0) // Look for user data
       delay(500);
     break;
     
-    case 'A':
+    case 'j':
       Serial1.println("Car is now partially Autonomous");
       
     break;
     
-   case 'B':
-     Serial1.println("Car is off");
-     digitalWrite(ENA_PIN,HIGH);
+   case 'k':
+     Serial1.println("Car ignition has been turned off");
      // Set certain LEDs off
      digitalWrite(DayLights, LOW);   // Turn the LED on (HIGH is the voltage level)
      digitalWrite(SensorLight,LOW);
+     digitalWrite(ENA_PIN,HIGH);
+     digitalWrite(Latch_Pin, LOW);
+
    break;
    
-   case 'C':
-     Serial1.println("Car is on");
+   case 'l':
+     Serial1.println("Car ignition has been started");
      digitalWrite(ENA_PIN,LOW);
+     digitalWrite(Latch_Pin, HIGH);
       // Set certain LEDs on
      digitalWrite(DayLights, HIGH);   // Turn the LED on (HIGH is the voltage level)
-     digitalWrite(SensorLight,HIGH);
    break;
   }
 //  if (inches <= 10)
