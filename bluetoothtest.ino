@@ -1,376 +1,385 @@
+// Author: Briyanna Forde
+// Date: 05/28/2018
+
 #include <Servo.h>
 #include <NewPing.h>
 
 #define SONAR_NUM 5      // Number of sensors.
 #define MAX_DISTANCE 200 // Maximum distance (in cm) to ping.
 #define baud 115200
+#define PAUSE 500 // 500 ms pause
 
 // Declaring Sensor pins
-  NewPing sonar[SONAR_NUM] = 
-  {   
-// Sensor object array.
-// Each sensor's trigger pin, echo pin, and max distance to ping. 
-    NewPing(22, 23, MAX_DISTANCE), 
-    NewPing(24, 25, MAX_DISTANCE), 
-    NewPing(26, 27, MAX_DISTANCE),
-    NewPing(28, 29, MAX_DISTANCE),
-    NewPing(30, 31, MAX_DISTANCE)
-  };
-  
-// Analog IR prox sensors ADC channels  
-  const int ProxSensorFL = A0;
-  const int ProxSensorFR = A1;
-  const int ProxSensorRL = A2;
-  const int ProxSensorRR = A3;
-  
+NewPing sonar[SONAR_NUM] =
+{ // Sensor object array.
+  // Each sensor's pins trigger, echo, along with max distance.
+  NewPing(22, 23, MAX_DISTANCE),
+  NewPing(24, 25, MAX_DISTANCE),
+  NewPing(26, 27, MAX_DISTANCE),
+  NewPing(28, 29, MAX_DISTANCE),
+  NewPing(30, 31, MAX_DISTANCE)
+};
+// Analog IR prox sensors ADC channels
+const int ProxSensorFL = A0;
+const int ProxSensorFR = A1;
+const int ProxSensorRL = A2;
+const int ProxSensorRR = A3;
+
 // Data input for light control
-  int inputValFL = 0;
-  int inputValFR = 0;
-  int inputValRL = 0;
-  int inputValRR = 0;
-  float calcValFL = 0;
-  float calcValFR = 0;
-  float calcValRL = 0;
-  float calcValRR = 0;
-  
-  // long duration,cm, inches;
-  const int analogInPin = A4;
-  int ENA_PIN    = 33; //EnA of Buffer IC chip
-  int Latch_Pin  = 32;
-  
+int inputValFL = 0;
+int inputValFR = 0;
+int inputValRL = 0;
+int inputValRR = 0;
+
+// long duration,cm, inches;
+int lightSense = A4;
+int ENA_PIN    = 33; // EnA of Buffer 74LS573
+int Latch_Pin  = 32; // Latch of Buffer 74LS573 ?
+
 // Declaring the pins for the lights used
-  int ReverseLights = 5;
-  int DayLights = 6;
-  int turnLeft = 7;
-  int turnRight = 8;
-  int HeadLights = 11;
-  int BrakeLights = 9;
-  int SensorLight = 10;
+int ReverseLights = 5;
+int DayLights = 6;
+int turnLeft = 7;
+int turnRight = 8;
+int HeadLights = 11;
+int BrakeLights = 9;
+int SensorLight = 10;
 
 // Declaring window wiper motor
-  #define ENB_PIN   4 // ENB of DC motor driver module attach to pin 4 of sunfounder uno board
-  #define IN3 3 // left IN1 attach to pin 3 
-  #define IN4 2 // left IN2 attach to pin 2
-  
+#define ENB_PIN 4 // ENB for DC motor driver module
+#define IN3 3 // left IN1 attach to pin 3 
+#define IN4 2 // left IN2 attach to pin 2
+
 // Initializing Serial1.available variable
-  int incomingByte = 0;
-  int sensorValue = 0;
+char incomingByte = 0;
+int incomingLight = 0;
+int autoFlag = 0; // False - Car under commands
 
 // Creating servo objects for the motors
-  Servo servo; // Steering servo
-  Servo steering; //Steering wheel servo
-  Servo esc; // Brushless motor 
-  #define defalt 90
-  #define left 160
-  #define right 50
-  #define reverse 88
-  #define forward 97
+Servo sservo; // Steering servo
+Servo esc; // Brushless motor Ctrl-er
 
 // Some statement that doesn't work.
-  String startMsg = "Arduino board active";
+String data = "Hello From Arduino!";
+// Why not String startMsg = "Arduino board active"
 
+// Commands function for vehicle
+void carCommands(char iByte)
+{
+  switch (iByte)
+  {
+    // Turns ON the head LEDs and state visability levels
+    case 'a':
+      Serial1.println("Low visablity");
+      digitalWrite(HeadLights, HIGH); // LEDs ON
+      break;
+
+    // Turns OFF the head lights and state visability levels
+    case 'b':
+      Serial1.println("High visablity");
+      digitalWrite(HeadLights, LOW); // LEDs OFF
+      break;
+
+    // Turns OFF brake LEDs, go forward
+    case 'c':
+      Serial1.println("Headlights are on");
+      Serial1.println("Sensorlight on");
+      digitalWrite(SensorLight, HIGH); // Sensor ON
+      digitalWrite(BrakeLights, LOW);      // Brake LEDs OFF
+      digitalWrite(ReverseLights, LOW); // Reverse LEDs OFF
+      esc.write(97); // Forward direction
+      break;
+
+    // Turn OFF break LEDs, Reverse LEDs ON, go backwards
+    case 'd':
+      Serial1.println("Headlights are off");
+      digitalWrite(ReverseLights, HIGH); // Reverse LEDs ON
+      digitalWrite(SensorLight, LOW); // Sensor OFF
+      digitalWrite(BrakeLights, LOW); // Brake LEDs OFF
+      esc.write(88); // Reverse direction
+      break;
+
+    // Turn left with indication
+    case 'e':
+      Serial1.println("Turning left");
+      sservo.write(160); // Turn steering left
+      // Flash the left turn LEDs
+      for (int w = 0; w < 5; w++)
+      {
+        digitalWrite(turnLeft, HIGH); // LEDs ON
+        delay(PAUSE); // Wait 500 ms
+        digitalWrite(turnLeft, LOW); // LEDs OFF
+        delay(PAUSE); // Wait 500 ms
+      }
+      break;
+
+    // Turns right with indication
+    case 'f':
+      Serial1.println("Turning right");
+      sservo.write(30); // Turn steering right
+      // Flash the right turn LEDs
+      for (int w = 0; w < 5; w++)
+      {
+        digitalWrite(turnRight, HIGH); // LEDs ON
+        delay(PAUSE); // Wait 500 ms
+        digitalWrite(turnRight, LOW); // LEDs OFF
+        delay(PAUSE); // Wait 500 ms
+      }
+      break;
+
+    // Turns brake LEDs ON, stop vehicle, steering straight
+    case 'g':
+      Serial1.println("Car is stopped");
+      digitalWrite(BrakeLights, HIGH); // LEDs ON
+      digitalWrite(SensorLight, LOW); // Sensor OFF
+      digitalWrite(ReverseLights, LOW); // LEDs OFF
+      sservo.write(90); // Steering straight
+      esc.write(90); // Motor stopped
+      delay((PAUSE * 2)); // Wait 1 sec
+      break;
+
+    // Wipers ON, preciptation level high
+    case 'h':
+      Serial1.println("High precipitation");
+      digitalWrite(ENB_PIN, HIGH); // EN the h-bridge
+      digitalWrite(IN3, HIGH); // Wipers ON
+      digitalWrite(IN4, LOW); // Needs to be OFF for wipers
+      delay(PAUSE); // Wait 500 ms
+      break;
+
+    // Wipers OFF, preciptation level low
+    case 'i':
+      Serial1.println("No precipitation");
+      digitalWrite(IN3, LOW); // Wipers OFF
+      digitalWrite(IN4, LOW); // Needs to be OFF for wipers
+      digitalWrite(ENB_PIN, LOW); // EN for h-bridge OFF
+      delay(PAUSE); // Wait 500 ms
+      break;
+
+
+
+    // Turn OFF the ignition and all other functioins
+    case 'j':
+      Serial1.println("Car is off");
+      digitalWrite(DayLights, LOW); // Daytime running LEDs OFF
+      digitalWrite(SensorLight, LOW); // Sensor OFF
+      digitalWrite(ENA_PIN, HIGH); // ? OFF
+      digitalWrite(Latch_Pin, LOW); // Enable buffer chip OFF
+      break;
+
+    // Turn ON the ignition for the car
+    case 'k':
+      Serial1.println("Car ignition is started");
+      digitalWrite(Latch_Pin, HIGH); // ENable buffer chip
+      digitalWrite(ENA_PIN, LOW); // ENable ?
+      digitalWrite(DayLights, HIGH); // Day time running LEDs ON
+      break;
+
+    // Pre-determined sequence
+    case 'l':
+      Serial1.println("Car wheels are straighten");
+      autoFlag = 1; // Autonomous mode enabled
+      break;
+    case 'm':
+      Serial1.println("Car is now partially Autonomous");
+      sservo.write(90);
+      break;
+    default: // Error Command Entered
+      Serial1.println("\n Command Error!"); // Incorrect command
+      sservo.write(90); // Default steering direction
+      esc.write(90); // Turn OFF motor Ctrl-er
+  }
+  
+}
+
+// Function to automate the vehicle based on preset commands
+void autoMate(char cmd, int amtOfCmds)
+{
+  int z = 0; // Loop variable
+
+  // Cycle through and execute each command
+  for (z = 0; z < amtOfCmds; z++)
+  {
+    // Execute the given command
+    carCommands('k');
+    delay(PAUSE);
+    carCommands('a');
+    delay(250);
+    carCommands('e');
+    delay(PAUSE);
+    carCommands('c');
+    delay(PAUSE);
+    carCommands('f');
+    carCommands('g');
+    delay(PAUSE);
+    carCommands('d');
+    delay(PAUSE+PAUSE);
+    carCommands('g');
+    carCommands('j');
+    delay(PAUSE);
+  }
+  // Reset the automate flag
+  autoFlag = 0;
+}
+
+//################ Main loop ################
 void setup()
 {
-// Onboard lights and wiper
-// Error Commands handling.
+  //Onboard lights and wiper
+  // Error Commands handiling.
   pinMode(ReverseLights, OUTPUT);
-  pinMode(turnRight, OUTPUT);   
+  pinMode(turnRight, OUTPUT);
   pinMode(turnLeft, OUTPUT);
-  pinMode(DayLights, OUTPUT);   
-  //pinMode(HeadLights, OUTPUT);   
+  pinMode(DayLights, OUTPUT);
+  pinMode(HeadLights, OUTPUT);
   pinMode(BrakeLights, OUTPUT);
   pinMode(SensorLight, OUTPUT);
   pinMode(ENB_PIN, OUTPUT);
   pinMode(IN3, OUTPUT);
   pinMode(IN4, OUTPUT);
+  pinMode(ENA_PIN, OUTPUT);
+  pinMode(Latch_Pin, OUTPUT);
 
-
-  servo.attach(34);                  // Attach servo objects to their respective pins
-  steering.attach(13);               
-  esc.attach(12);
-  steering.write(defalt);                // Set their default positions
-  servo.write(defalt);
-  esc.write(defalt);
-  Serial1.begin(baud);               // Begin data communication process
-}
-
-void loop () 
-{
-
- 
-if(Serial1.available()> 0) // Look for user data
-  {
-    incomingByte = Serial1.read();          // Store user data into variable
-    Serial1.write(incomingByte);            // Display message to user
-    Serial1.write(": ");
-    inputValFL = analogRead(ProxSensorFL);
-    calcValFL = (6787.0 / (inputValFL - 3.0)) - 4.0;
-    inputValFR = analogRead(ProxSensorFR);
-    calcValFR = (6787.0 / (inputValFR - 3.0)) - 4.0;
-    inputValRL = analogRead(ProxSensorRL);
-    calcValRL = (6787.0 / (inputValRL - 3.0)) - 4.0;
-    inputValRR = analogRead(ProxSensorRR);
-    calcValRR = (6787.0 / (inputValRR - 3.0)) - 4.0;
-
-        
-    switch( incomingByte)
-    {
-
- // Car is turned on when a is entered     
-      case 'a':
-        StartIgnition();
-      break;
-
-// Turns on the head lights and state visability levels
-       case 'b':
-        Serial1.println("Low visablity");
-        digitalWrite(HeadLights, HIGH);
-       break;
-      case 'n':
-        LightDetection();
-  // print the results to the Serial1 Monitor:
-        Serial1.print("Light level is: ");
-        Serial1.println(sensorValue);
-      break;
-  // Turns off the head lights and state visability levels
-      case 'c':
-        Serial1.println("High visablity");
-        digitalWrite(HeadLights, LOW);
-      break;
-  // Test at getting front IR sensors to work
-      case 'o':
-        inputValFL = analogRead(ProxSensorFL);
-        Serial1.print("IR Distance1 is: ");
-        calcValFL = (6787.0 / (inputValFL - 3.0)) - 4.0;
-        Serial1.println(calcValFL);
-        calcValFL = (6787.0 / (inputValFL - 3.0)) - 4.0;
-        inputValFR = analogRead(ProxSensorFR);
-        Serial1.print("IR Distance2 is: ");
-        calcValFR = (6787.0 / (inputValFR - 3.0)) - 4.0;
-        Serial1.println(calcValFR);
-        Serial1.print("Ping Sensor ");
-        Serial1.print(4);
-        Serial1.print("= ");
-        Serial1.println(sonar[4].ping_cm());
-        if (calcValFL > 11 || calcValFR > 11 || sonar[4].ping_cm() > 130)
-        {
-          Go();
-        }
-        else
-        {
-          Brake();
-        }
-        break;
-   // Test at getting rear IR sensors to work
-      case 'p':
-        inputValFL = analogRead(ProxSensorRL);
-        Serial1.print("IR Distance1 is: ");
-        calcValRL = (6787.0 / (inputValRL - 3.0)) - 4.0;
-        Serial1.println(calcValRL);
-        calcValRL = (6787.0 / (inputValRL - 3.0)) - 4.0;
-        inputValRR = analogRead(ProxSensorRR);
-        Serial1.print("IR Distance2 is: ");
-        calcValRR = (6787.0 / (inputValRR - 3.0)) - 4.0;
-        Serial1.println(calcValRR);
-        if (calcValRL > 19 || calcValRR > 19)
-        {
-          Backwards();
-        }
-        else
-        {
-          Brake();
-        }
-        break;     
-  // Turns off the brake lights, turns on the sensor light and starts the brushless motor forward
-      case 'd':
-        Serial1.println("Headlights are on");
-        digitalWrite(BrakeLights, LOW);
-        digitalWrite(SensorLight, HIGH);
-        digitalWrite(ReverseLights, LOW);
-        esc.write(forward);
-      break;
-
-// Turns off the brake lights and sensor lights and starts the brushless motor backward
-      case 'e':
-        Serial1.println("Headlights are off");
-        digitalWrite(SensorLight, LOW);
-        digitalWrite(BrakeLights, LOW);
-        digitalWrite(ReverseLights, HIGH);
-        esc.write(reverse);
-        esc.write(reverse);
-      break;
-
-// Turns on the left indicator lights, turns the front wheels to the left and states direction of movement
-      case 'f':
-        Serial1.println("Turning left");
-        digitalWrite(turnLeft, HIGH);
-        delay(250); // wait for a second
-        digitalWrite(turnLeft, LOW); 
-        steering.write(left);
-        servo.write(left);
-        digitalWrite(turnLeft, HIGH);
-        delay(250);                       // wait for a second
-        digitalWrite(turnLeft, LOW);      // turn the LED off by making the voltage LOW
-        delay(250);
-        digitalWrite(turnLeft, HIGH);     // turn the LED on (HIGH is the voltage level)
-        delay(250);
-        digitalWrite(turnLeft, LOW);      
-      break;
-
-// Turns on the right indicator lights, turns the front wheels to the right and states direction of movement
-      case 'g':     
-        Serial1.println("Turning right");
-        digitalWrite(turnRight,HIGH);  
-        delay(250);                      // wait for half a second
-        digitalWrite(turnRight, LOW);    // turn the LED off by making the voltage LOW
-        steering.write(35);
-        servo.write(right);
-        digitalWrite(turnRight,HIGH);  
-        delay(250);                      // wait for half a second
-        digitalWrite(turnRight, LOW);    // turn the LED off by making the voltage LOW
-        delay(250);
-        digitalWrite(turnRight, HIGH);   // turn the LED on (HIGH is the voltage level)
-        delay(250);
-        digitalWrite(turnRight, LOW);
-      break;
-      
-// Turns off the indicator lights, turns the front wheels straight and states direction of movement
-      case 'h':     
-        Serial1.println("Straightening Wheel");
-        digitalWrite(turnRight, LOW);    // turn the LED off by making the voltage LOW
-        digitalWrite(turnLeft, LOW);
-        steering.write(defalt);
-        servo.write(defalt);
-        
-      break;
-
-// Turns off the sensor lights, turns on the brake lights and stops the cars movement while straightening the wheels
-      case 'i':
-        Serial1.println("Car is stopped");
-        digitalWrite(SensorLight, LOW);
-        digitalWrite(BrakeLights, HIGH);
-        digitalWrite(ReverseLights, LOW);
-        steering.write(defalt);
-        servo.write(defalt);
-        esc.write(defalt);
-      break;
-
-// Turns on windshield wipers and states the level of preciptation
-      case 'j':
-        Serial1.println("High precipitation");
-        digitalWrite(ENB_PIN, HIGH); 
-        digitalWrite(IN3, HIGH);
-        digitalWrite(IN4, LOW);
-        delay(500);
-      break;
-
-// Turns off windshield wipers and states the level of preciptation
-      case 'l':
-        Serial1.println("No precipitation");
-        delay(500);
-        digitalWrite(ENB_PIN, LOW); 
-        digitalWrite(IN3, LOW);
-        digitalWrite(IN4, LOW);
-      break;
-
-// Car becomes partially autonomous when l is entered         
-      case 'm':
-        Serial1.println("Car is now partially Autonomous");
-        
-      break;
-
-// Car is turned off when k is entered      
-      case 'k':
-        ShutOffIgnition();
-      break;
-    }
-  }
-}
-void StartIgnition()
-{
-  Serial1.println("Car ignition has been started");
-  digitalWrite(ENA_PIN,LOW);
-  digitalWrite(Latch_Pin, HIGH);
-  // Set certain LEDs on
-  digitalWrite(DayLights, HIGH);   // Turn the LED on (HIGH is the voltage level)
-}
-void ShutOffIgnition()
-{
-  Serial1.println("Car ignition has been turned off");
-  // Set certain LEDs off
-  digitalWrite(DayLights, LOW);   // Turn the LED on (HIGH is the voltage level)
-  digitalWrite(SensorLight, LOW);
-  digitalWrite(ENA_PIN,HIGH);
-  digitalWrite(Latch_Pin, LOW);
-}
-void Go()
-{
-  Serial1.println("Headlights are on");
-  digitalWrite(BrakeLights, LOW);
+  // Flash certain LEDs - ON
+  digitalWrite(DayLights, HIGH); // Daytime running lights
+  digitalWrite(turnLeft, HIGH); // Left turn signal
+  digitalWrite(turnRight, HIGH); // Right turn signal
   digitalWrite(SensorLight, HIGH);
-  digitalWrite(ReverseLights, LOW);
-  esc.write(forward);
-}
-void Backwards()
-{
-  Serial1.println("Headlights are off");
-  digitalWrite(SensorLight, LOW);
-  digitalWrite(BrakeLights, LOW);
-  digitalWrite(ReverseLights, HIGH);
-  esc.write(reverse);
-  esc.write(reverse);
-}
-void Brake()
-{
-  Serial1.println("Car is stopped");
-  digitalWrite(SensorLight, LOW);
-  digitalWrite(BrakeLights, HIGH);
-  digitalWrite(ReverseLights, LOW);
-  steering.write(defalt);
-  servo.write(defalt);
-  esc.write(defalt);
-}
-void LightDetection()
-{
-  sensorValue = analogRead(analogInPin);
+  delay(PAUSE - 200); // 300 ms
 
-  if (sensorValue < 500)
-  {
-    Serial1.println("Low visablity");
-      digitalWrite(HeadLights, HIGH);
-  }
-  else
-  {
-    Serial1.println("High visablity");
-      digitalWrite(HeadLights, LOW);
-  }
+  // Flash certain LEDs - OFF
+  digitalWrite(DayLights, LOW);
+  digitalWrite(turnLeft, LOW);
+  digitalWrite(turnRight, LOW);
+  digitalWrite(SensorLight, LOW);
+  delay(PAUSE - 200); // 300 ms
+
+  sservo.attach(13); // Attach sservo objects pin #13
+  esc.attach(12); // Attach esc objects to pin #12
+  sservo.write(90);  // Set sservo to default position
+  esc.write(90); // Set esc to default - OFF
+  delay(PAUSE - 200); // 300 ms
+  Serial1.begin(baud); // Begin data communication process
 }
-//void SensorData()
-//{
-//    // Active sensor data retrieval from environment 
-//       for (uint8_t i = 0; i < SONAR_NUM; i++) { // Loop through each sensor and display results.
-//       delay(50); // Wait 50ms between pings (about 20 pings/sec). 29ms should be the shortest delay between pings.
-//       Serial1.print("Ping Sensor ");
-//       Serial1.print(i);
-//       Serial1.print("= ");
-//       Serial1.print(sonar[i].ping_cm());
-//       Serial1.print("cm \n");
-//     }
-//     incominglight = analogRead(lightSense);
-//     Serial1.print("Light level is: ");
-//     Serial1.println(lightSense);
-//     inputValFL = analogRead(ProxSensorFL);
-//     Serial1.print("IR Distance1 is: ");
-//     Serial1.println(inputValFL);
-//     inputValFR = analogRead(ProxSensorFR);
-//     Serial1.print("IR Distance2 is: ");
-//     Serial1.println(inputValFR);
-//     inputValRL = analogRead(ProxSensorRL);
-//     Serial1.print("IR Distance3 is: ");
-//     Serial1.println(inputValRL);
-//     inputValRR = analogRead(ProxSensorRR);
-//     Serial1.print("IR Distance4 is: ");
-//     Serial1.println(inputValRR);
-//     Serial1.println(" ");
-//     delay(1500);              // Wait for a second
-//}
+
+// ############## Main Loop for Code Execution ##############
+void loop ()
+{
+  // Array of commands to automate the vehicle
+  char cmds[] = {'k', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'l', 'm'};
+  int  numOfCmds = 13; // Hard coded, can be larger
+
+  // Data array for ping sensors
+  int pSensor[SONAR_NUM]; // 5 sensors total
+
+  // Read each PING sensor and save its value
+  for (uint8_t i = 0; i < SONAR_NUM; i++)
+  { 
+    // Send display message to user
+    Serial1.print("Ping Sensor ");
+    Serial1.print(i);
+    Serial1.print("= ");
+    pSensor[i] = sonar[i].ping_cm(); // Obtain the ping sensor's value
+    Serial1.print(pSensor[i]); // Send distance to COMs
+    Serial1.print("cm \n");
+    delay((PAUSE/10));// Wait 50 ms
+  }
+
+  // Obtain the dat from the prox Sensors
+  inputValFL = analogRead(ProxSensorFL);
+  inputValFR = analogRead(ProxSensorFR);
+  inputValRL = analogRead(ProxSensorRL);
+  inputValRR = analogRead(ProxSensorRR);
+  incomingLight = analogRead(lightSense);
+
+  // Send display msg to user on COMs
+  Serial1.print("Distance 1 is: ");
+  Serial1.println(inputValFL);
+  
+  Serial1.print("Distance 2 is: ");
+  Serial1.println(inputValFR);
+  
+  Serial1.print("Distance 3 is: ");
+  Serial1.println(inputValRL);
+  
+  Serial1.print("Distance 4 is: ");
+  Serial1.println(inputValRR);
+  
+  Serial1.println(" ");
+  delay(PAUSE); // Wait 500 ms
+
+
+
+
+  carCommands('k') ; // Turn on the car's ignition.
+
+
+
+
+  // ######## Make decision based on the read values
+  
+  if((incomingLight < 500))
+  {
+    carCommands('a');
+  }
+  if((incomingLight > 500))
+  {
+    carCommands('b');
+  }
+  if((inputValFR > 300) & (inputValFR < 800) & (inputValFL > 300) & (inputValFL < 800)) // prox sensor FR is within
+  {
+    carCommands('d'); // Go backward
+  }
+
+  if((inputValRL > 300) & (inputValRL < 800) & (inputValRR > 300) & (inputValRR < 800)) // prox sensor RL is within
+  {
+    carCommands('c'); // Go forward
+  }
+
+
+  // ######## Make decision based on sensor data - pSensor[]
+//  if(pSensor[0] > 200) carCommands('g'); // You can use this example - PING sensor 1
+//
+//  if((pSensor[0] > 100) & (pSensor[0] < 400)){
+//    carCommands('g'); // You can use this example - PING sensor 1
+//  }// End of checking pSensor[0], PING sensor #1
+  
+  // ######## Make decision based on sensor data - pSensor[0] and Prox Sensor FL
+  if((inputValFL > 100) & (pSensor[0] < 30) || (pSensor[1] < 30) & (pSensor[2] > 30) & (pSensor[3] > 30))
+  {
+    carCommands('e'); // Turn left
+  }
+
+  if((inputValFL > 100) & (pSensor[2] < 30) || (pSensor[3] < 30) & (pSensor[0] > 30) & (pSensor[1] > 30))
+  {
+    carCommands('f'); // Turn right
+  }
+  if((inputValFL > 100) & (pSensor[2] > 30) & (pSensor[3] > 30) & (pSensor[0] > 30) & (pSensor[1] > 30))
+  {
+    carCommands('m'); // Car is straight
+  }
+
+
+  //carCommands('j'); // Turn OFF the car's ignition
+
+
+  
+  //######## Checks msg from Bluetooth and execute that command
+  // Check for data via Bluetooth module
+  if (Serial1.available() > 0) // Look for user data
+  {
+    incomingByte = Serial1.read(); // Store user char Data into variable
+    Serial1.write(incomingByte);   // Display message to user
+    Serial1.write(": ");
+
+    // Operate the vehicle based on sent data
+    carCommands(incomingByte);
+
+    // Check if autonomous flag is set
+    if (autoFlag == 1)
+    {
+      // Execute the automated commands
+      autoMate(cmds, numOfCmds);
+    }
+  } // End of data checking
+}
